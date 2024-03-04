@@ -9,6 +9,7 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 """
 
 
+import json
 import os
 import numpy
 import itertools
@@ -39,6 +40,7 @@ class NeuroMLCAP(object):
         self.cell = None
         self.analyses_dir = None
         self.model_files = None
+        self.recorder = {}
 
     def read_config(self, config_file_name: str):
         """Read the analysis configuration file
@@ -106,14 +108,16 @@ class NeuroMLCAP(object):
 
                 args = itertools.product(input_segments, currents)
 
-                sims = {}
                 for sg, cr in args:
                     simid, lems_file = self.generate_step_current_sim(segment_id=sg, current_nA=cr)
-                    sims[simid] = {
+                    self.recorder[simid] = {
                         "simfile": lems_file,
                         "segment": sg,
                         "current": cr
                     }
+
+        with open("report.txt", "w") as f:
+            json.dump(self.recorder, f)
 
     def generate_step_current_sim(self, current_nA: str, segment_id: str):
         """Create simulation with provided current at provided point in the cell.
