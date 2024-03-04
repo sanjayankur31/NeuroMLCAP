@@ -1,0 +1,5 @@
+[default]
+cell_dir = "L5PC"
+cell_file = "L5PC.cell.nml"
+plot_morphology = false
+fi_curve = true
