@@ -2,4 +2,18 @@
 cell_dir = "L5PC"
 cell_file = "L5PC.cell.nml"
 plot_morphology = false
-fi_curve = true
+fi_curves = true
+extra_lems_definition_files = ["CaDynamics_E2_NML2.nml"]
+
+[fi_curves]
+currents_min = "-50 nA"
+currents_max =  "100 nA"
+currents_steps = 10
+currents = []
+dt = "0.0025"
+temperature = "32degC"
+stim_start = "500ms"
+stim_duration = "1000ms"
+sim_duration = "2000ms"
+segment_groups = true
+extra_segments = []
