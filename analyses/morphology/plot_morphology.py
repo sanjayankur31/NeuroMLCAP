@@ -11,10 +11,10 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 
 import sys
 from pyneuroml.plot.PlotMorphology import plot_2D_cell_morphology
-from pyneuroml.io import read_neuroml2_file
+from neuroml import Cell
 
 
-def run(neuroml_file: str) -> None:
+def plot_morpholgy_2d(cell: Cell) -> None:
     """Plot the morphology of a cell
 
     :param neuroml_file: name of NeuroML file containing cell
@@ -22,9 +22,6 @@ def run(neuroml_file: str) -> None:
     :returns: None
 
     """
-    cell_doc = read_neuroml2_file(neuroml_file)
-    cell = cell_doc.cells[0]
-
     for plane in ["xy", "yz", "zx"]:
         plot_2D_cell_morphology(
             offset=[0, 0, 0],
@@ -38,4 +35,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         print("Usage: plot_morphology <NML cell file>")
         sys.exit(1)
-    run(sys.argv[1])
+    plot_morpholgy_2d(sys.argv[1])
