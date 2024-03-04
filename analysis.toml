@@ -6,8 +6,8 @@ fi_curves = true
 extra_lems_definition_files = ["CaDynamics_E2_NML2.nml"]
 
 [fi_curves]
-currents_min = "-50 nA"
-currents_max =  "100 nA"
+currents_min = "-0.50 nA"
+currents_max =  "0.200 nA"
 currents_steps = 10
 currents = []
 dt = "0.0025"
