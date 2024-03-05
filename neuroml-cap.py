@@ -104,7 +104,8 @@ class NeuroMLCAP(object):
 
         # fi-curves with step current at soma
         if self.cfg["default"]["fi_curves"] is True:
-            logger.info("Generating fi_curves")
+            logger.info("Generating fi curve simulations")
+            self.recorder = {}
             if len(self.cfg["fi_curves"]["currents"]) == 0:
                 currents = numpy.linspace(
                     start=convert_to_units(self.cfg["fi_curves"]["currents_min"], "nA"),
@@ -124,8 +125,27 @@ class NeuroMLCAP(object):
                     }
                     self.sim_counter += 1
 
-        with open("sims.json", "w") as f:
-            json.dump(self.recorder, f)
+            with open("sims_fi.json", "w") as f:
+                json.dump(self.recorder, f)
+
+        if self.cfg["default"]["poisson_inputs"] is True:
+            logger.info("Generating poisson input simulations")
+            self.sim_counter = 0
+            self.recorder = {}
+            for i in range(0, self.cfg["poisson_inputs"]["num_iterations"]):
+                # new set of segments for each simulation
+                self.poisson_input_segments = random.sample(
+                    self.cell_obj.morphology.segments,
+                    self.cfg["poisson_inputs"]["num_inputs"],
+                )
+                simid, lems_file = self.generate_poisson_input_sim()
+                self.recorder[simid] = {
+                    "simfile": lems_file,
+                    "input_segments": [sg.id for sg in self.poisson_input_segments],
+                }
+                self.sim_counter += 1
+            with open("sims_poisson_inputs.json", "w") as f:
+                json.dump(self.recorder, f)
 
     def __get_segments_to_record(self):
         """Get a few segments to mark for inputs and for recording from."""
@@ -142,7 +162,7 @@ class NeuroMLCAP(object):
         # always record from soma
         self.recorded_segments["0"] = {
             "marker_size": self.cfg["default"]["segment_marker_size"],
-            "marker_color": next(colors),
+            "marker_color": list(next(colors)),
         }
 
         # from other segments around the cell
@@ -151,13 +171,13 @@ class NeuroMLCAP(object):
             # middle
             self.recorded_segments[str(segments[int(len(segments) / 2)])] = {
                 "marker_size": self.cfg["default"]["segment_marker_size"],
-                "marker_color": next(colors),
+                "marker_color": list(next(colors)),
             }
 
         for s in self.cfg["default"]["extra_segments_record"]:
             self.recorded_segments[str(s)] = {
                 "marker_size": self.cfg["default"]["segment_marker_size"],
-                "marker_color": next(colors),
+                "marker_color": list(next(colors)),
             }
         logger.debug(f"Segments being recorded from are: {self.recorded_segments}")
 
@@ -244,6 +264,81 @@ class NeuroMLCAP(object):
             destination="synapses",
             segment_id=segment_id,
         )
+        net_file_name = f"{sim_id}.net.nml"
+        write_neuroml2_file(net_doc, net_file_name)
+        ls.include_neuroml2_file(net_file_name)
+        for f in self.cfg["default"]["extra_lems_definition_files"]:
+            ls.include_lems_file(f)
+        ls.create_output_file("output_file", f"{sim_id}.v.dat")
+
+        for s in self.recorded_segments.keys():
+            ls.add_column_to_output_file(
+                "output_file", f"v_cell_0_{s}", f"{pop.id}/0/{self.cell_obj.id}/{s}/v"
+            )
+
+        lems_file_name = ls.save_to_file()
+        return (sim_id, lems_file_name)
+
+    def generate_poisson_input_sim(self):
+        """Create simulation with a number of poisson inputs being projected on to the cell.
+
+        Each simulation uses the same inputs, but different seeds
+        """
+        sim_id = f"poisson_stim_sim_{self.sim_counter}"
+        # sim
+        ls = LEMSSimulation(
+            sim_id=sim_id,
+            duration=convert_to_units(self.cfg["poisson_inputs"]["sim_duration"], "ms"),
+            dt=self.cfg["poisson_inputs"]["dt"],
+            simulation_seed=random.randint(0, 99999),
+        )
+        ls.include_neuroml2_file(self.cell_file, include_included=True)
+        # nml model
+        net_doc = nmlu.component_factory(neuroml.NeuroMLDocument, id=sim_id)
+        net_doc.add(neuroml.IncludeType(href=self.cell_file))
+        net = net_doc.add(
+            neuroml.Network,
+            id="network",
+            type="networkWithTemperature",
+            temperature=self.cfg["poisson_inputs"]["temperature"],
+            validate=False,
+        )
+        pop = net.add(
+            neuroml.Population,
+            id=f"population_of_{self.cell_obj.id}",
+            component=self.cell_obj.id,
+            type="populationList",
+            size=1,
+            validate=False,
+        )
+        pop.add(neuroml.Instance, id=0, location=neuroml.Location(x=0, y=0, z=0))
+        ls.assign_simulation_target(net.id)
+
+        ctr = 0
+        for s in self.poisson_input_segments:
+            # new input
+            pi = net_doc.add(
+                neuroml.SpikeGeneratorPoisson,
+                id=f"pi_{self.sim_counter}_{ctr}",
+                average_rate=f"{self.cfg['poisson_inputs']['hz_inputs']} Hz",
+            )
+
+            # Add these to cells
+            input_list = net.add(
+                neuroml.InputList,
+                id=f"input_{ctr}",
+                component=pi.id,
+                populations=pop.id,
+            )
+            input_list.add(
+                neuroml.Input,
+                id=str(ctr),
+                target=f"../{pop.id}/0",
+                destination="synapses",
+                segment_id=s.id,
+            )
+            ctr += 1
+
         net_file_name = f"{sim_id}.net.nml"
         write_neuroml2_file(net_doc, net_file_name)
         ls.include_neuroml2_file(net_file_name)
