@@ -1,4 +1,5 @@
 [default]
+seed = 1234
 cell_dir = "L5PC"
 cell_file = "L5PC.cell.nml"
 plot_morphology = true
