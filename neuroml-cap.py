@@ -59,6 +59,9 @@ class NeuroMLCAP(object):
         logger.info(f"Read configuration file: {self.cfg_file_name}")
         logger.info(f"Configuration is: {self.cfg['default']}")
 
+        # set the random seed before we use it anywhere
+        random.seed(self.cfg["default"]["seed"])
+
     def __create_analysis_dir(self):
         """Create a new folder to hold the analyses results"""
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
