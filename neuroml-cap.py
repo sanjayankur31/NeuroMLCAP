@@ -161,6 +161,10 @@ class NeuroMLCAP(object):
             }
         logger.debug(f"Segments being recorded from are: {self.recorded_segments}")
 
+        # save recorded segments to a json file
+        with open("segments.json", "w") as f:
+            json.dump(self.recorded_segments, f)
+
     def plot_morpholgy_2d(self) -> None:
         """Plot the morphology of a cell
 
