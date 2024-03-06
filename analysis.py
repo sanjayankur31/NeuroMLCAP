@@ -2,7 +2,7 @@
 """
 Main runner script for the NeuroML Cell Analysis Pipeline (NeuroMLCAP)
 
-File: neuroml-cap.py
+File: analysis.py
 
 Copyright 2024 Ankur Sinha
 Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
@@ -23,9 +23,10 @@ import numpy
 from matplotlib.pyplot import cm
 from pyneuroml.io import read_neuroml2_file, write_neuroml2_file
 from pyneuroml.lems.LEMSSimulation import LEMSSimulation
-from pyneuroml.plot.PlotMorphology import plot_2D_cell_morphology
 from pyneuroml.utils import get_model_file_list
 from pyneuroml.utils.units import convert_to_units
+from plotting.plot import plot_morpholgy_2d
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -45,7 +46,6 @@ class NeuroMLCAP(object):
         self.recorder = {}
         self.unbranched_segment_groups = None
         self.recorded_segments = {}
-        self.segment_marker_dict = None
 
     def read_config(self, config_file_name: str):
         """Read the analysis configuration file
@@ -100,7 +100,7 @@ class NeuroMLCAP(object):
         # morphology
         if self.cfg["default"]["plot_morphology"] is True:
             logger.info("Generating morphology plots")
-            self.plot_morpholgy_2d()
+            plot_morpholgy_2d(self.cell_obj, self.recorded_segments, "morphology")
 
         # fi-curves with step current at soma
         if self.cfg["default"]["fi_curves"] is True:
@@ -132,18 +132,37 @@ class NeuroMLCAP(object):
             logger.info("Generating poisson input simulations")
             self.sim_counter = 0
             self.recorder = {}
-            for i in range(0, self.cfg["poisson_inputs"]["num_iterations"]):
-                # new set of segments for each simulation
-                self.poisson_input_segments = random.sample(
-                    self.cell_obj.morphology.segments,
-                    self.cfg["poisson_inputs"]["num_inputs"],
+            # same set of segments for each simulation, for each seed
+            self.poisson_input_segments = random.sample(
+                self.cell_obj.morphology.segments,
+                self.cfg["poisson_inputs"]["num_inputs"],
+            )
+
+            colors = iter(
+                cm.rainbow(
+                    numpy.linspace(0, 1, self.cfg["poisson_inputs"]["num_inputs"])
                 )
+            )
+
+            self.input_segment_marks = {}
+            for sg in self.poisson_input_segments:
+                self.input_segment_marks[sg.id] = {
+                    "marker_size": self.cfg["default"]["segment_marker_size"],
+                    "marker_color": list(next(colors)),
+                }
+            plot_morpholgy_2d(self.cell_obj, self.input_segment_marks, "inputs")
+
+            # number of iterations with different seeds for the poisson inputs
+            self.recorder = {}
+            for i in range(0, self.cfg["poisson_inputs"]["num_iterations"]):
                 simid, lems_file = self.generate_poisson_input_sim()
                 self.recorder[simid] = {
                     "simfile": lems_file,
-                    "input_segments": [sg.id for sg in self.poisson_input_segments],
                 }
-                self.sim_counter += 1
+
+            with open("segments_poisson_inputs.json", "w") as f:
+                json.dump(self.input_segment_marks, f)
+
             with open("sims_poisson_inputs.json", "w") as f:
                 json.dump(self.recorder, f)
 
@@ -182,25 +201,8 @@ class NeuroMLCAP(object):
         logger.debug(f"Segments being recorded from are: {self.recorded_segments}")
 
         # save recorded segments to a json file
-        with open("segments.json", "w") as f:
+        with open("segments_recorded.json", "w") as f:
             json.dump(self.recorded_segments, f)
-
-    def plot_morpholgy_2d(self) -> None:
-        """Plot the morphology of a cell
-
-        :param neuroml_file: name of NeuroML file containing cell
-        :type neuroml_file: str
-        :returns: None
-
-        """
-        for plane in ["xy", "yz", "zx"]:
-            plot_2D_cell_morphology(
-                offset=[0, 0, 0],
-                cell=self.cell_obj,
-                plane2d=plane,
-                save_to_file=f"{self.cell_obj.id}-{plane}.png",
-                highlight_spec=self.recorded_segments,
-            )
 
     def generate_step_current_sim(self, current_nA: str, segment_id: str):
         """Create simulation with provided current at provided point in the cell.
@@ -303,6 +305,14 @@ class NeuroMLCAP(object):
             temperature=self.cfg["poisson_inputs"]["temperature"],
             validate=False,
         )
+        syn = net_doc.add(
+            neuroml.ExpTwoSynapse,
+            id="syn",
+            gbase="6nS",
+            erev="0mV",
+            tau_decay="10ms",
+            tau_rise="2ms",
+        )
         pop = net.add(
             neuroml.Population,
             id=f"population_of_{self.cell_obj.id}",
@@ -315,27 +325,36 @@ class NeuroMLCAP(object):
         ls.assign_simulation_target(net.id)
 
         ctr = 0
-        for s in self.poisson_input_segments:
-            # new input
-            pi = net_doc.add(
-                neuroml.SpikeGeneratorPoisson,
-                id=f"pi_{self.sim_counter}_{ctr}",
-                average_rate=f"{self.cfg['poisson_inputs']['hz_inputs']} Hz",
-            )
+        # new input
+        pi = net_doc.add(
+            neuroml.SpikeGeneratorPoisson,
+            id=f"pi_{self.sim_counter}_{ctr}",
+            average_rate=f"{self.cfg['poisson_inputs']['hz_inputs']} Hz",
+        )
+        pi_pop = net.add(
+            neuroml.Population,
+            id="SpikeGeneratorPoissons",
+            component=pi.id,
+            size=len(self.poisson_input_segments),
+        )
 
-            # Add these to cells
-            input_list = net.add(
-                neuroml.InputList,
-                id=f"input_{ctr}",
-                component=pi.id,
-                populations=pop.id,
-            )
-            input_list.add(
-                neuroml.Input,
+        pi_proj = net.add(
+            neuroml.Projection,
+            id="PoissonProjections",
+            presynaptic_population=pi_pop.id,
+            postsynaptic_population=pop.id,
+            synapse=syn.id,
+        )
+        for s in self.poisson_input_segments:
+            pi_proj.add(
+                neuroml.Connection,
                 id=str(ctr),
-                target=f"../{pop.id}/0",
-                destination="synapses",
-                segment_id=s.id,
+                pre_cell_id=f"../{pi_pop.id}[{ctr}]",
+                pre_segment_id="0",
+                pre_fraction_along="0.5",
+                post_cell_id=f"../{pop.id}/0/{self.cell_obj.id}/",
+                post_segment_id=str(s.id),
+                post_fraction_along="0.5",
             )
             ctr += 1
 
