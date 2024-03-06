@@ -22,11 +22,9 @@ stim_duration = "1000ms"
 sim_duration = "2000ms"
 
 [poisson_inputs]
-num_inputs = 100
-hz_inputs = 200
-num_iterations = 10
+num_inputs = 200
+hz_inputs = 50
+num_iterations = 1
 dt = "0.0025"
 temperature = "32degC"
-stim_start = "500ms"
-stim_duration = "1000ms"
 sim_duration = "2000ms"
