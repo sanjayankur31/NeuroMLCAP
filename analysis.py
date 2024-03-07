@@ -9,12 +9,14 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 """
 
 
+import sys
 import json
 import logging
 import os
 import random
 import shutil
 import tomllib
+import pathlib
 from datetime import datetime
 
 import neuroml
@@ -47,7 +49,7 @@ class NeuroMLCAP(object):
         self.unbranched_segment_groups = None
         self.recorded_segments = {}
 
-    def read_config(self, config_file_name: str):
+    def read_config(self, config_file_name: str = "analysis.toml"):
         """Read the analysis configuration file
 
         :param config_file_name: TODO
@@ -82,6 +84,13 @@ class NeuroMLCAP(object):
         # nml files and LEMS definition files
         self.model_files = filelist + self.cfg["default"]["extra_lems_definition_files"]
         logger.debug(f"Model files are: {self.model_files}")
+
+        logger.info("Creating folders")
+        for f in self.model_files:
+            if "/" in f:
+                mfile = pathlib.Path(f)
+                folders = mfile.parent
+                os.makedirs(f"{self.analyses_dir}/{folders}", exist_ok=True)
 
         logger.info("Copying files to analyses directory")
         for f in self.model_files:
@@ -376,5 +385,8 @@ class NeuroMLCAP(object):
 
 if __name__ == "__main__":
     analysis = NeuroMLCAP()
-    analysis.read_config("analysis.toml")
+    if len(sys.argv) > 1:
+        analysis.read_config(sys.argv[1])
+    else:
+        analysis.read_config("analysis.toml")
     analysis.run()

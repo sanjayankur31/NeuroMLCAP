@@ -9,6 +9,7 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 """
 
 
+import sys
 import typing
 import json
 import logging
@@ -48,27 +49,54 @@ def plot_morpholgy_2d(
 
 
 if __name__ == "__main__":
-    cell_obj = read_neuroml2_file("L5PC.cell.nml").cells[0]
+    print(sys.argv)
+    if len(sys.argv) != 2:
+        print("Please provide the name of the cell file as the argument")
+        sys.exit(-1)
+
+    print(f"Working on file {sys.argv[1]}")
+    cell_obj = read_neuroml2_file(sys.argv[1]).cells[0]
     recorded_segments = None
     input_segments = None
+    fi_sims = None
+    poisson_sims = None
 
     # plot morphology with segments being recorded from marked
     with open("segments_recorded.json", "r") as f:
         recorded_segments = json.load(f)
+    colors = [val["marker_color"] for val in recorded_segments.values()]
 
     # plot morphology with segments being input to marked
     with open("segments_poisson_inputs.json", "r") as f:
         input_segments = json.load(f)
 
+    # get fi current sims
+    with open("sims_fi.json", "r") as f:
+        fi_sims = json.load(f)
+
+    # get poisson sims
+    with open("sims_poisson_inputs.json", "r") as f:
+        poisson_sims = json.load(f)
+
     plot_morpholgy_2d(
         cell_obj, recorded_segments, "morphology", show_plot=True, plane=["xy"]
     )
-    plot_morpholgy_2d(cell_obj, input_segments, "inputs", show_plot=True, plane=["xy"])
 
-    colors = [val["marker_color"] for val in recorded_segments.values()]
-    plot_time_series_from_lems_file(
-        "LEMS_poisson_stim_sim_0.xml",
-        show_plot_already=True,
-        labels=False,
-        colors=colors,
-    )
+    for k, v in fi_sims.items():
+        plot_time_series_from_lems_file(
+            v["simfile"],
+            show_plot_already=True,
+            labels=False,
+            colors=colors,
+            title=f"{v['current']} nA at soma",
+        )
+
+    plot_morpholgy_2d(cell_obj, input_segments, "inputs", show_plot=True, plane=["xy"])
+    for k, v in poisson_sims.items():
+        plot_time_series_from_lems_file(
+            v["simfile"],
+            show_plot_already=True,
+            labels=False,
+            colors=colors,
+            title="poisson spike train inputs",
+        )

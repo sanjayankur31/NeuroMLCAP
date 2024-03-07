@@ -1,0 +1,30 @@
+[default]
+seed = 1234
+cell_dir = "L5PC"
+cell_file = "L5PC.cell.nml"
+extra_lems_definition_files = ["CaDynamics_E2_NML2.nml"]
+plot_morphology = true
+num_segs_record = 20
+extra_segments_record = []
+segment_marker_size = 10
+fi_curves = true
+poisson_inputs = true
+
+[fi_curves]
+currents_min = "-0.50 nA"
+currents_max =  "1.51 nA"
+currents_steps = 5
+currents = []
+dt = "0.0025"
+temperature = "32degC"
+stim_start = "500ms"
+stim_duration = "1000ms"
+sim_duration = "2000ms"
+
+[poisson_inputs]
+num_inputs = 200
+hz_inputs = 50
+num_iterations = 1
+dt = "0.0025"
+temperature = "32degC"
+sim_duration = "2000ms"
