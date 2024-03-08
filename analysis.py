@@ -73,6 +73,10 @@ class NeuroMLCAP(object):
     def run(self):
         """Main runner method"""
         self.__create_analysis_dir()
+        # write to a file
+        with open("simulation.txt", 'w') as f:
+            print(f"{self.analyses_dir}", file=f)
+
         logger.info(f"Created new directory for analyses: {self.analyses_dir}")
         filelist = []
         get_model_file_list(
