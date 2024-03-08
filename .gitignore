@@ -21,3 +21,5 @@ examples/results/*.dat
 .mypy_cache/
 /.coverage
 arm64
+
+.snakemake/
