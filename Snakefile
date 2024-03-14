@@ -1,3 +1,4 @@
+# note: this is a WIP
 parallel_processes = 8
 
 
