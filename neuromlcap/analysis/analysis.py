@@ -15,7 +15,6 @@ import logging
 import os
 import random
 import shutil
-import tomllib
 import pathlib
 from datetime import datetime
 
@@ -29,6 +28,9 @@ from pyneuroml.utils import get_model_file_list
 from pyneuroml.utils.units import convert_to_units
 from plotting.plot import plot_morpholgy_2d
 
+from .config.config import read_config
+from .utils.utils import create_analysis_dir
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -37,9 +39,9 @@ logger.setLevel(logging.DEBUG)
 class NeuroMLCAP(object):
     """Main class for NeuroMLCAP"""
 
-    def __init__(self):
+    def __init__(self, config_file_name):
         """Initialise"""
-        self.cfg_file_name = None
+        self.cfg_file_name = config_file_name
         self.cfg = None
         self.nml_doc = None
         self.cell = None
@@ -49,60 +51,27 @@ class NeuroMLCAP(object):
         self.unbranched_segment_groups = None
         self.recorded_segments = {}
 
-    def read_config(self, config_file_name: str = "analysis.toml"):
-        """Read the analysis configuration file
-
-        :param config_file_name: TODO
-        """
-        with open(config_file_name, "rb") as f:
-            self.cfg = tomllib.load(f)
-
-        self.cfg_file_name = config_file_name
+    def prepare(self):
+        """Prep for analyses"""
+        self.cfg = read_config(self.cfg_file_name)
         logger.info(f"Read configuration file: {self.cfg_file_name}")
         logger.info(f"Configuration is: {self.cfg['default']}")
 
         # set the random seed before we use it anywhere
         random.seed(self.cfg["default"]["seed"])
 
-    def __create_analysis_dir(self):
-        """Create a new folder to hold the analyses results"""
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        self.analyses_dir = f"{timestamp}_{self.cfg['default']['cell_file']}"
-        os.mkdir(self.analyses_dir)
-
-    def run(self):
-        """Main runner method"""
-        self.__create_analysis_dir()
+        self.analyses_dir = create_analysis_dir()
+        logger.info(f"Created new directory for analyses: {self.analyses_dir}")
         # write to a file
-        with open("simulation.txt", 'w') as f:
+        with open("simulation.txt", "w") as f:
             print(f"{self.analyses_dir}", file=f)
 
-        logger.info(f"Created new directory for analyses: {self.analyses_dir}")
-        filelist = []
-        get_model_file_list(
-            self.cfg["default"]["cell_file"],
-            rootdir=self.cfg["default"]["cell_dir"],
-            filelist=filelist,
-        )
-
-        # nml files and LEMS definition files
-        self.model_files = filelist + self.cfg["default"]["extra_lems_definition_files"]
-        logger.debug(f"Model files are: {self.model_files}")
-
-        logger.info("Creating folders")
-        for f in self.model_files:
-            if "/" in f:
-                mfile = pathlib.Path(f)
-                folders = mfile.parent
-                os.makedirs(f"{self.analyses_dir}/{folders}", exist_ok=True)
-
-        logger.info("Copying files to analyses directory")
-        for f in self.model_files:
-            shutil.copy(
-                f"{self.cfg['default']['cell_dir']}/{f}", f"{self.analyses_dir}/{f}"
-            )
+        logger.info("Copying cell folder to analyses directory")
+        shutil.copytree(f"{self.cfg['default']['cell_dir']}", f"{self.analyses_dir}/")
 
         os.chdir(self.analyses_dir)
+
+        # create a cell object and get list of segments to record
         self.cell_file = f"{self.cfg['default']['cell_file']}"
         self.nml_doc = read_neuroml2_file(
             self.cell_file
@@ -110,6 +79,8 @@ class NeuroMLCAP(object):
         self.cell_obj = self.nml_doc.cells[0]  # type: neuroml.Cell
         self.__get_segments_to_record()
 
+    def analyse(self):
+        """Main runner method for analyses"""
         # morphology
         if self.cfg["default"]["plot_morphology"] is True:
             logger.info("Generating morphology plots")
@@ -386,11 +357,7 @@ class NeuroMLCAP(object):
         lems_file_name = ls.save_to_file()
         return (sim_id, lems_file_name)
 
-
-if __name__ == "__main__":
-    analysis = NeuroMLCAP()
-    if len(sys.argv) > 1:
-        analysis.read_config(sys.argv[1])
-    else:
-        analysis.read_config("analysis.toml")
-    analysis.run()
+    def run(self):
+        """Main runner method"""
+        self.prepare()
+        self.analyse()

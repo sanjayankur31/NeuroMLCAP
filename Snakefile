@@ -7,7 +7,7 @@ rule create_analysis:
     output:
         "simulation.txt",
     shell:
-        "python3 analysis.py {input}"
+        "python3 neuroml-cap.py {input}"
 
 rule run_analysis:
     input:
