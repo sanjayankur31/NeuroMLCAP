@@ -1,4 +1,5 @@
 # note: this is a WIP
+# note: I'm just chaining commands, do I need Snakemake?
 parallel_processes = 8
 
 
@@ -16,7 +17,7 @@ rule run_analysis:
     output:
         touch("run_analysis.done")
     shell:
-        "pushd $(cat {input}) && ../run_parallel.sh {parallel_processes} && popd ; rm simulation.txt"
+        "pushd $(cat {input}) && ../run_parallel.sh {parallel_processes} && popd"
 
 rule run_sim_analysis_and_plot:
     input:
@@ -26,6 +27,12 @@ rule run_sim_analysis_and_plot:
         touch("plotting.done")
     shell:
         "python3 neuroml-cap.py --plot $(cat {input})"
+
+rule clean:
+    input:
+        rules.run_sim_analysis_and_plot.output
+    shell:
+        "rm -f simulation.txt"
 
 # has to be at bottom because run_analysis needs to be defined
 rule all:
