@@ -17,7 +17,7 @@ rule run_analysis:
     output:
         touch("run_analysis.done")
     shell:
-        "pushd $(cat {input}) && ../run_parallel.sh {parallel_processes} && popd"
+        "pushd $(cat {input}) && ../scripts/run_parallel.sh {parallel_processes} && popd"
 
 rule run_sim_analysis_and_plot:
     input:
