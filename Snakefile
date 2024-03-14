@@ -3,7 +3,7 @@ parallel_processes = 8
 
 rule create_analysis:
     input:
-        expand("analysis.{filename}.toml", filename=config['cellname'])
+        expand("analysis.{cellname}.toml", cellname=config['cellname'])
     output:
         "simulation.txt",
     shell:
