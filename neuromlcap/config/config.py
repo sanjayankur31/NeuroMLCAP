@@ -12,7 +12,6 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 import logging
 import tomllib
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 

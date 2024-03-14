@@ -9,14 +9,11 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 """
 
 
-import sys
 import json
 import logging
 import os
 import random
 import shutil
-import pathlib
-from datetime import datetime
 
 import neuroml
 import neuroml.utils as nmlu
@@ -24,13 +21,11 @@ import numpy
 from matplotlib.pyplot import cm
 from pyneuroml.io import read_neuroml2_file, write_neuroml2_file
 from pyneuroml.lems.LEMSSimulation import LEMSSimulation
-from pyneuroml.utils import get_model_file_list
 from pyneuroml.utils.units import convert_to_units
-from plotting.plot import plot_morpholgy_2d
 
-from .config.config import read_config
-from .utils.utils import create_analysis_dir
-
+from ..plot.plot import plot_morpholgy_2d
+from ..config.config import read_config
+from ..utils.utils import create_analysis_dir
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -51,41 +46,65 @@ class NeuroMLCAP(object):
         self.unbranched_segment_groups = None
         self.recorded_segments = {}
 
-    def prepare(self):
-        """Prep for analyses"""
+    def prepare(self, folder):
+        """Prep for analyses
+
+        :param folder: name of folder, if none given, create a new one
+        :type folder: str
+
+        :returns: name of analysis folder
+        :rtype: str
+        """
         self.cfg = read_config(self.cfg_file_name)
         logger.info(f"Read configuration file: {self.cfg_file_name}")
         logger.info(f"Configuration is: {self.cfg['default']}")
 
+        self.cell_file = f"{self.cfg['default']['cell_file']}"
+
         # set the random seed before we use it anywhere
         random.seed(self.cfg["default"]["seed"])
 
-        self.analyses_dir = create_analysis_dir()
-        logger.info(f"Created new directory for analyses: {self.analyses_dir}")
-        # write to a file
-        with open("simulation.txt", "w") as f:
-            print(f"{self.analyses_dir}", file=f)
+        if folder is None:
+            self.analyses_dir = create_analysis_dir(self.cell_file, False)
+            logger.info(f"Created new directory for analyses: {self.analyses_dir}")
+            # write to a file
+            with open("simulation.txt", "w") as f:
+                print(f"{self.analyses_dir}", file=f)
 
-        logger.info("Copying cell folder to analyses directory")
-        shutil.copytree(f"{self.cfg['default']['cell_dir']}", f"{self.analyses_dir}/")
+            logger.info("Copying cell folder to analyses directory")
+            shutil.copytree(
+                f"{self.cfg['default']['cell_dir']}", f"{self.analyses_dir}"
+            )
+        else:
+            self.analyses_dir = folder
 
         os.chdir(self.analyses_dir)
 
-        # create a cell object and get list of segments to record
-        self.cell_file = f"{self.cfg['default']['cell_file']}"
         self.nml_doc = read_neuroml2_file(
             self.cell_file
         )  # type: neuroml.NeuroMLDocument
         self.cell_obj = self.nml_doc.cells[0]  # type: neuroml.Cell
-        self.__get_segments_to_record()
+        if folder is None:
+            self.__get_segments_to_record(True)
+        else:
+            self.__get_segments_to_record(False)
+
+        return self.analyses_dir
 
     def analyse(self):
         """Main runner method for analyses"""
+        self.run_model_analyses()
+        self.create_sim_analyses()
+
+    def run_model_analyses(self):
+        """Run analyses that can be done on the model"""
         # morphology
         if self.cfg["default"]["plot_morphology"] is True:
             logger.info("Generating morphology plots")
             plot_morpholgy_2d(self.cell_obj, self.recorded_segments, "morphology")
 
+    def create_sim_analyses(self):
+        """Create analyses that require simulation of the model."""
         # fi-curves with step current at soma
         if self.cfg["default"]["fi_curves"] is True:
             logger.info("Generating fi curve simulations")
@@ -150,43 +169,52 @@ class NeuroMLCAP(object):
             with open("sims_poisson_inputs.json", "w") as f:
                 json.dump(self.recorder, f)
 
-    def __get_segments_to_record(self):
-        """Get a few segments to mark for inputs and for recording from."""
-        self.unbranched_segment_groups = self.cell_obj.get_segment_groups_by_substring(
-            "", unbranched=True
-        )
-        # pick N
-        sgs = list(self.unbranched_segment_groups.values())
-        sgs = random.sample(sgs, self.cfg["default"]["num_segs_record"])
-        nsegs = 1 + len(sgs) + len(self.cfg["default"]["extra_segments_record"])
-        # unique colors
-        colors = iter(cm.rainbow(numpy.linspace(0, 1, nsegs)))
+    def __get_segments_to_record(self, new: bool = False):
+        """Get a segments to mark for recording from.
 
-        # always record from soma
-        self.recorded_segments["0"] = {
-            "marker_size": self.cfg["default"]["segment_marker_size"],
-            "marker_color": list(next(colors)),
-        }
+        :param new: create new segments if True, else load from a file
+        :type new: bool
+        """
+        if not new:
+            with open("segments_recorded.json", "r") as f:
+                self.recorded_segments = json.load(f)
+        else:
+            self.unbranched_segment_groups = (
+                self.cell_obj.get_segment_groups_by_substring("", unbranched=True)
+            )
+            # pick N
+            sgs = list(self.unbranched_segment_groups.values())
+            sgs = random.sample(sgs, self.cfg["default"]["num_segs_record"])
+            nsegs = 1 + len(sgs) + len(self.cfg["default"]["extra_segments_record"])
+            # unique colors
+            colors = iter(cm.rainbow(numpy.linspace(0, 1, nsegs)))
 
-        # from other segments around the cell
-        for sg in sgs:
-            segments = self.cell_obj.get_all_segments_in_group(sg)
-            # middle
-            self.recorded_segments[str(segments[int(len(segments) / 2)])] = {
+            # always record from soma
+            self.recorded_segments["0"] = {
                 "marker_size": self.cfg["default"]["segment_marker_size"],
                 "marker_color": list(next(colors)),
             }
 
-        for s in self.cfg["default"]["extra_segments_record"]:
-            self.recorded_segments[str(s)] = {
-                "marker_size": self.cfg["default"]["segment_marker_size"],
-                "marker_color": list(next(colors)),
-            }
+            # from other segments around the cell
+            for sg in sgs:
+                segments = self.cell_obj.get_all_segments_in_group(sg)
+                # middle
+                self.recorded_segments[str(segments[int(len(segments) / 2)])] = {
+                    "marker_size": self.cfg["default"]["segment_marker_size"],
+                    "marker_color": list(next(colors)),
+                }
+
+            for s in self.cfg["default"]["extra_segments_record"]:
+                self.recorded_segments[str(s)] = {
+                    "marker_size": self.cfg["default"]["segment_marker_size"],
+                    "marker_color": list(next(colors)),
+                }
+
+            # save recorded segments to a json file
+            with open("segments_recorded.json", "w") as f:
+                json.dump(self.recorded_segments, f)
+
         logger.debug(f"Segments being recorded from are: {self.recorded_segments}")
-
-        # save recorded segments to a json file
-        with open("segments_recorded.json", "w") as f:
-            json.dump(self.recorded_segments, f)
 
     def generate_step_current_sim(self, current_nA: str, segment_id: str):
         """Create simulation with provided current at provided point in the cell.
