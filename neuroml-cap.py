@@ -30,7 +30,7 @@ def neuromlcap():
     args = parser.parse_args()
     analysis = NeuroMLCAP(args.config_file)
     if args.analyse:
-        analysis.prepare()
+        analysis.prepare(folder=None)
         analysis.analyse()
     elif args.plot:
         analysis.prepare(args.plot)

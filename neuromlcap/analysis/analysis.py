@@ -22,6 +22,11 @@ from matplotlib.pyplot import cm
 from pyneuroml.io import read_neuroml2_file, write_neuroml2_file
 from pyneuroml.lems.LEMSSimulation import LEMSSimulation
 from pyneuroml.utils.units import convert_to_units
+from pyneuroml.runners import (
+    run_multiple_lems_with,
+    execute_command_in_dir,
+    execute_multiple_in_dir,
+)
 
 from ..plot.plot import plot_morpholgy_2d
 from ..config.config import read_config
@@ -95,6 +100,7 @@ class NeuroMLCAP(object):
         """Main runner method for analyses"""
         self.run_model_analyses()
         self.create_sim_analyses()
+        self.execute_simulations()
 
     def run_model_analyses(self):
         """Run analyses that can be done on the model"""
@@ -108,7 +114,7 @@ class NeuroMLCAP(object):
         # fi-curves with step current at soma
         if self.cfg["default"]["fi_curves"] is True:
             logger.info("Generating fi curve simulations")
-            self.recorder = {}
+            recorder_fi = {}
             if len(self.cfg["fi_curves"]["currents"]) == 0:
                 currents = numpy.linspace(
                     start=convert_to_units(self.cfg["fi_curves"]["currents_min"], "nA"),
@@ -121,7 +127,7 @@ class NeuroMLCAP(object):
                     simid, lems_file = self.generate_step_current_sim(
                         segment_id=0, current_nA=cr
                     )
-                    self.recorder[simid] = {
+                    recorder_fi[simid] = {
                         "simfile": lems_file,
                         "segment": "0",
                         "current": cr,
@@ -129,12 +135,14 @@ class NeuroMLCAP(object):
                     self.sim_counter += 1
 
             with open("sims_fi.json", "w") as f:
-                json.dump(self.recorder, f)
+                json.dump(recorder_fi, f)
+
+            self.recorder["fi"] = recorder_fi
 
         if self.cfg["default"]["poisson_inputs"] is True:
             logger.info("Generating poisson input simulations")
             self.sim_counter = 0
-            self.recorder = {}
+            recorder_poisson = {}
             # same set of segments for each simulation, for each seed
             self.poisson_input_segments = random.sample(
                 self.cell_obj.morphology.segments,
@@ -156,10 +164,10 @@ class NeuroMLCAP(object):
             plot_morpholgy_2d(self.cell_obj, self.input_segment_marks, "inputs")
 
             # number of iterations with different seeds for the poisson inputs
-            self.recorder = {}
+            recorder_poisson = {}
             for i in range(0, self.cfg["poisson_inputs"]["num_iterations"]):
                 simid, lems_file = self.generate_poisson_input_sim()
-                self.recorder[simid] = {
+                recorder_poisson[simid] = {
                     "simfile": lems_file,
                 }
 
@@ -167,7 +175,8 @@ class NeuroMLCAP(object):
                 json.dump(self.input_segment_marks, f)
 
             with open("sims_poisson_inputs.json", "w") as f:
-                json.dump(self.recorder, f)
+                json.dump(recorder_poisson, f)
+            self.recorder["poisson"] = recorder_fi
 
     def __get_segments_to_record(self, new: bool = False):
         """Get a segments to mark for recording from.
@@ -384,6 +393,46 @@ class NeuroMLCAP(object):
 
         lems_file_name = ls.save_to_file()
         return (sim_id, lems_file_name)
+
+    def execute_simulations(self):
+        """Execute simulations in parallel"""
+        logger.info(f"recorder is: {self.recorder}")
+        # generates all the NEURON simulations
+        sims_spec = {}
+        for sim_type, sims_specs in self.recorder.items():
+            for k, specs in sims_specs.items():
+                sims_spec[specs["simfile"]] = {
+                    "engine": "jneuroml_neuron",
+                    "kwargs": {
+                        "nogui": True,
+                        "compile_mods": False,
+                        "skip_run": False,
+                        "only_generate_scripts": True,
+                    },
+                }
+        logger.info(f"sims_spec is {sims_spec}")
+        run_multiple_lems_with(self.cfg["default"]["num_parallel"], sims_spec=sims_spec)
+
+        # compile all the mods
+        # we're still in the analysis dir
+        execute_command_in_dir("nrnivmodl", directory=".", verbose=False)
+
+        # run all the simulations
+        cmds_spec = []
+        results = None
+        for sim_type, sims_specs in self.recorder.items():
+            for k, specs in sims_specs.items():
+                cmds_spec.append(
+                    {
+                        "command": f"python3 {specs['simfile'].replace('.xml', '_nrn.py')}",
+                        "directory": ".",
+                        "verbose": False,
+                    }
+                )
+        logger.info(f"cmd_spec is {cmds_spec}")
+        results = execute_multiple_in_dir(
+            num_parallel=self.cfg["default"]["num_parallel"], cmds_spec=cmds_spec
+        )
 
     def run(self):
         """Main runner method"""

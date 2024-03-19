@@ -1,5 +1,6 @@
 [default]
 seed = 1234
+num_parallel = 8
 cell_dir = "HL23PYR"
 cell_file = "HL23PYR.cell.nml"
 extra_lems_definition_files = ["CaDynamics_E2_NML2.nml"]

@@ -1,5 +1,6 @@
 [default]
 seed = 1234
+num_parallel = 8
 cell_dir = "L5PC"
 cell_file = "L5PC.cell.nml"
 extra_lems_definition_files = ["CaDynamics_E2_NML2.nml"]
