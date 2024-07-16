@@ -21,8 +21,7 @@ rule run_analysis:
 
 rule run_sim_analysis_and_plot:
     input:
-        rules.create_analysis.output
-        rules.run_analysis.output
+        rules.create_analysis.output, rules.run_analysis.output
     output:
         touch("plotting.done")
     shell:
