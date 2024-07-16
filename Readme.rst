@@ -34,6 +34,13 @@ Note that if you are using GCC version 14, you will need to export some compilat
     pip install -r ./requirements.txt
 
 
+We use `GNU Parallel <https://www.gnu.org/software/parallel/>`__ to run simulations in parallel using the NEURON simulator.
+Please refer to the website to install it.
+On most Linux distributions, GNU Parallel should be available from the default package manager.
+
+We also use the "bash" shell.
+
+
 Usage
 =====
 
