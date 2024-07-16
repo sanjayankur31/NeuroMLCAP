@@ -26,21 +26,6 @@ Please do remember to use a virtual environment.
     pip install -r ./requirements.txt
 
 
-Note that if you are using GCC version 14, you will need to export some compilation flags to get `datrie (a dependency of snakemake) to install <https://github.com/pytries/datrie/issues/101>`__:
-
-.. code:: bash
-
-    export CFLAGS="-Wno-error=incompatible-pointer-types" ; export CXXFLAGS="-Wno-error=incompatible-pointer-types"
-    pip install -r ./requirements.txt
-
-
-We use `GNU Parallel <https://www.gnu.org/software/parallel/>`__ to run simulations in parallel using the NEURON simulator.
-Please refer to the website to install it.
-On most Linux distributions, GNU Parallel should be available from the default package manager.
-
-We also use the "bash" shell.
-
-
 Usage
 =====
 

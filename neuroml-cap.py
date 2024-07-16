@@ -14,7 +14,7 @@ from neuromlcap.analysis.analysis import NeuroMLCAP
 
 
 def neuromlcap():
-    """TODO: Docstring for neuromlcap."""
+    """Main runner method"""
     parser = argparse.ArgumentParser(
         prog="neuroml-cap",
         description="A semi automated NeuroML cell analysis pipeline",

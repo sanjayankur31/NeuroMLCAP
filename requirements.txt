@@ -1,2 +1,1 @@
-pyNeuroML[neuron]
-snakemake
+pyNeuroML[all]
