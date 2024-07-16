@@ -176,7 +176,7 @@ class NeuroMLCAP(object):
 
             with open("sims_poisson_inputs.json", "w") as f:
                 json.dump(recorder_poisson, f)
-            self.recorder["poisson"] = recorder_fi
+            self.recorder["poisson"] = recorder_poisson
 
     def __get_segments_to_record(self, new: bool = False):
         """Get a segments to mark for recording from.
