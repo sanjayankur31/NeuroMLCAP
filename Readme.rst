@@ -1,10 +1,22 @@
 NeuroMLCAP
 ------------
 
-The NeuroML Cell Analysis Pipeline is a set of Python scripts for the easy analysis of NeuroML cell models.
+The NeuroML Cell Analysis Pipeline (NeuroMLCAP) is a utility for the easy analysis of NeuroML cell models.
+It is written in Python and takes advantage of the NeuroML standard.
+If your cell model is standardised in NeuroML, you can use this utility to analyse it.
+
+More information on NeuroML can be found in its documentation at https://docs.neuroml.org.
 
 Installation
 ============
+
+Clone this repository and enter it:
+
+.. code:: bash
+
+    git clone https://github.com/sanjayankur31/NeuroMLCAP.git
+    cd NeuroMLCAP
+
 
 In most cases, you should be able to use `pip` to install the necessary requirements.
 Please do remember to use a virtual environment.
@@ -61,6 +73,8 @@ This will run all the steps of the analyses and store the results in a new folde
 
 List of analyses
 ================
+
+The analysis pipeline is currently being developed.
 
 The list of analyses will grow as more of them are added.
 To request inclusion of a particular analysis protocol, please file a new issue.
