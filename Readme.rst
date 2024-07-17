@@ -52,16 +52,32 @@ As more analyses are added to the suite, the configuration file will continue to
 Run the analyses
 ~~~~~~~~~~~~~~~~~
 
-To run the complete analysis pipeline, we currently use `snakemake <https://snakemake.github.io/>`__.
-We provide the analyses cell name as a configuration option and run `snakemake`:
+To run the complete analysis pipeline, run:
 
 .. code:: bash
 
-    snakemake --config cellname="<cellname>"
+    python neuroml-cap.py --analyse analysis.<cellname>.toml
 
 
-This will run all the steps of the analyses and store the results in a new folder.
+This will create a new folder with the simulation data.
 
+
+Plotting simulation outputs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Similarly, to plot the generated reports/graphs, run:
+
+.. code:: bash
+
+    python neuroml-cap.py --plot <output folder> analysis.<cellname>.toml
+
+
+This allows re-generation of the graphs/plots without having to re-run the analyses.
+
+NeuroMLCAP uses Matplotlib for all its plotting.
+You can customise Matplotlib settings using a `matplotlibrc` configuration file.
+One is included as an example.
+Please see the `Matplotlib documentation <https://matplotlib.org/stable/users/explain/customizing.html>`__ for more information.
 
 List of analyses
 ================

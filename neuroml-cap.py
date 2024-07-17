@@ -17,7 +17,7 @@ def neuromlcap():
     """Main runner method"""
     parser = argparse.ArgumentParser(
         prog="neuroml-cap",
-        description="A semi automated NeuroML cell analysis pipeline",
+        description="An automated NeuroML cell analysis pipeline",
     )
 
     parser.add_argument("config_file")
