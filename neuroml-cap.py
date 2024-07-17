@@ -22,19 +22,31 @@ def neuromlcap():
 
     parser.add_argument("config_file")
     tasks = parser.add_mutually_exclusive_group(required=True)
-    tasks.add_argument("--analyse", action="store_true", help="Create analyses")
+    tasks.add_argument(
+        "--full", action="store_true", help="Create and execute analyses, and plot"
+    )
+    tasks.add_argument(
+        "--analyse", action="store_true", help="Create and execute analyses"
+    )
     tasks.add_argument(
         "--plot", action="store", help="Plot analysis results", metavar="folder"
     )
 
     args = parser.parse_args()
     analysis = NeuroMLCAP(args.config_file)
-    if args.analyse:
+    # if both are given, do it all
+    if args.full:
+        analysis.prepare(folder=None)
+        analysis.analyse()
+        analysis.plot()
+    elif args.analyse:
         analysis.prepare(folder=None)
         analysis.analyse()
     elif args.plot:
         analysis.prepare(args.plot)
-        print(f"Will plot {args.plot}")
+        analysis.plot()
+    else:
+        print("Not sure what to do. Exiting.")
 
 
 if __name__ == "__main__":
