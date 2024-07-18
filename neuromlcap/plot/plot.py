@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def plot_morpholgy_2d(
+def plot_morphology_2d(
     cell_obj,
     highlight_spec: typing.Dict,
     filename_suffix: str,
@@ -45,6 +45,7 @@ def plot_morpholgy_2d(
             highlight_spec=highlight_spec,
             nogui=not show_plot,
             title=filename_suffix,
+            upright=True,
         )
 
 
