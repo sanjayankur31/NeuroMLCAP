@@ -40,6 +40,11 @@ logger.setLevel(logging.DEBUG)
 class NeuroMLCAP(object):
     """Main class for NeuroMLCAP"""
 
+    recorded_segments_file = "segments_recorded.json"
+    fi_sims_file = "sims_fi.json"
+    poisson_input_sims_file = "sims_poisson_inputs.json"
+    poisson_input_segments_file = "segments_poisson_inputs.json"
+
     def __init__(self, config_file_name):
         """Initialise"""
         self.cfg_file_name = config_file_name
@@ -48,6 +53,9 @@ class NeuroMLCAP(object):
         self.cell = None
         self.analyses_dir = None
         self.model_files = None
+        # TODO: formalise recorders by creating recording classes with well
+        # defined attributes instead of using generic dicts: will make it
+        # easier to code/extend/access
         self.recorder = {}
         self.unbranched_segment_groups = None
         self.recorded_segments = {}
@@ -83,6 +91,21 @@ class NeuroMLCAP(object):
             )
         else:
             self.analyses_dir = folder
+
+            # load sim data
+            with open(f"{folder}/{self.recorded_segments_file}", "r") as f:
+                self.recorded_segments = json.load(f)
+
+            if self.cfg["default"]["fi_curves"] is True:
+                with open(f"{folder}/{self.fi_sims_file}", "r") as f:
+                    recorder_fi = json.load(f)
+                    self.recorder["fi"] = recorder_fi
+            if self.cfg["default"]["poisson_inputs"] is True:
+                with open(f"{folder}/{self.poisson_input_sims_file}", "r") as f:
+                    recorder_poisson = json.load(f)
+                    self.recorder["poisson"] = recorder_poisson
+                with open(f"{folder}/{self.poisson_input_segments_file}", "r") as f:
+                    self.input_segment_marks = json.load(f)
 
         os.chdir(self.analyses_dir)
 
@@ -160,7 +183,7 @@ class NeuroMLCAP(object):
                     }
                     self.sim_counter += 1
 
-            with open("sims_fi.json", "w") as f:
+            with open(self.fi_sims_file, "w") as f:
                 json.dump(recorder_fi, f)
 
             self.recorder["fi"] = recorder_fi
@@ -187,7 +210,7 @@ class NeuroMLCAP(object):
                     "marker_size": self.cfg["default"]["segment_marker_size"],
                     "marker_color": list(next(colors)),
                 }
-            plot_morpholgy_2d(self.cell_obj, self.input_segment_marks, "inputs")
+            plot_morphology_2d(self.cell_obj, self.input_segment_marks, "inputs")
 
             # number of iterations with different seeds for the poisson inputs
             recorder_poisson = {}
@@ -197,10 +220,10 @@ class NeuroMLCAP(object):
                     "simfile": lems_file,
                 }
 
-            with open("segments_poisson_inputs.json", "w") as f:
+            with open(self.poisson_input_segments_file, "w") as f:
                 json.dump(self.input_segment_marks, f)
 
-            with open("sims_poisson_inputs.json", "w") as f:
+            with open(self.poisson_input_sims_file, "w") as f:
                 json.dump(recorder_poisson, f)
             self.recorder["poisson"] = recorder_poisson
 
@@ -211,7 +234,7 @@ class NeuroMLCAP(object):
         :type new: bool
         """
         if not new:
-            with open("segments_recorded.json", "r") as f:
+            with open(self.recorded_segments_file, "r") as f:
                 self.recorded_segments = json.load(f)
         else:
             self.unbranched_segment_groups = (
@@ -246,7 +269,7 @@ class NeuroMLCAP(object):
                 }
 
             # save recorded segments to a json file
-            with open("segments_recorded.json", "w") as f:
+            with open(self.recorded_segments_file, "w") as f:
                 json.dump(self.recorded_segments, f)
 
         logger.debug(f"Segments being recorded from are: {self.recorded_segments}")
