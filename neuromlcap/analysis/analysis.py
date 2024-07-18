@@ -459,8 +459,3 @@ class NeuroMLCAP(object):
         results = execute_multiple_in_dir(
             num_parallel=self.cfg["default"]["num_parallel"], cmds_spec=cmds_spec
         )
-
-    def run(self):
-        """Main runner method"""
-        self.prepare()
-        self.analyse()
