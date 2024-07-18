@@ -27,8 +27,9 @@ from pyneuroml.runners import (
     execute_command_in_dir,
     execute_multiple_in_dir,
 )
+from pyneuroml.plot.PlotTimeSeries import plot_time_series_from_lems_file
 
-from ..plot.plot import plot_morpholgy_2d
+from ..plot.plot import plot_morphology_2d
 from ..config.config import read_config
 from ..utils.utils import create_analysis_dir
 
@@ -102,12 +103,37 @@ class NeuroMLCAP(object):
         self.create_sim_analyses()
         self.execute_simulations()
 
+    def plot(self):
+        """Main method for plotting."""
+        self.plot_morphology()
+        # self.plot_sim_timeseries()
+
+    def plot_sim_timeseries(self):
+        """Plot time series data from simulations"""
+        logger.info("Plotting time series")
+        for sim_type, sims_specs in self.recorder.items():
+            for k, specs in sims_specs.items():
+                lems_file = specs["simfile"]
+                plot_time_series_from_lems_file(
+                    lems_file,
+                    show_plot_already=False,
+                    offset=True,
+                    labels=False,
+                    bottom_left_spines_only=True,
+                    save_figure_to=lems_file.replace(".xml", "_v.png"),
+                )
+                logger.info(f"Plotting time series for {lems_file}")
+
     def run_model_analyses(self):
         """Run analyses that can be done on the model"""
+        self.plot_morphology()
+
+    def plot_morphology(self):
+        """Plot morphology with recordings marked."""
         # morphology
         if self.cfg["default"]["plot_morphology"] is True:
             logger.info("Generating morphology plots")
-            plot_morpholgy_2d(self.cell_obj, self.recorded_segments, "morphology")
+            plot_morphology_2d(self.cell_obj, self.recorded_segments, "morphology")
 
     def create_sim_analyses(self):
         """Create analyses that require simulation of the model."""
