@@ -129,11 +129,15 @@ class NeuroMLCAP(object):
     def plot(self):
         """Main method for plotting."""
         self.plot_morphology()
-        # self.plot_sim_timeseries()
+        self.plot_sim_timeseries()
 
     def plot_sim_timeseries(self):
         """Plot time series data from simulations"""
         logger.info("Plotting time series")
+        line_colors = []
+        for segs, seginfo in self.recorded_segments.items():
+            line_colors.append(seginfo["marker_color"])
+
         for sim_type, sims_specs in self.recorder.items():
             for k, specs in sims_specs.items():
                 lems_file = specs["simfile"]
@@ -142,6 +146,7 @@ class NeuroMLCAP(object):
                     show_plot_already=False,
                     offset=True,
                     labels=False,
+                    colors=line_colors,
                     bottom_left_spines_only=True,
                     save_figure_to=lems_file.replace(".xml", "_v.png"),
                 )
